@@ -1,4 +1,4 @@
-# oled_backlight
+# oled-backlight
 Linux OLED backlight management for Linux intel cards
 
 I've a Lenovo X1 Carbon Extreme Gen2 and recently the OLED support has been fixed (thanks to https://gitlab.freedesktop.org/drm/intel/issues/510)
@@ -12,23 +12,23 @@ However common softs like xbacklight doesn't recognize the screen. So I've made 
 
 ```
 # print help
-$ ./oled_backlight
+$ ./oled-backlight
 Please add one of those argument: current|+|-|XY%
 
 # return current percentage
-$ ./oled_backlight current
+$ ./oled-backlight current
 50
 
 # lighter +5%
-$ sudo ./oled_backlight +
+$ sudo ./oled-backlight +
 55
 
 # darker -5%
-$ sudo ./oled_backlight -
+$ sudo ./oled-backlight -
 50
 
 # set light percentage
-$ sudo ./oled_backlight 60%
+$ sudo ./oled-backlight 60%
 60
 ```
 

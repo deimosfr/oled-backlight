@@ -1,6 +1,6 @@
 builds:
-  - main: oled_backlight.go
-    binary: oled_backlight
+  - main: oled-backlight.go
+    binary: oled-backlight
     goos:
       - linux
     goarch:
