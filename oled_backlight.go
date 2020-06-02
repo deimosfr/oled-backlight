@@ -57,12 +57,16 @@ func main() {
     } else if os.Args[1] == "+" {
         if currentBrightness >= 2000 {
             setBrightness = 2000
+        } else if currentBrightness < 100 {
+            setBrightness = currentBrightness + 20
         } else {
             setBrightness = currentBrightness + 100
         }
     } else if os.Args[1] == "-" {
         if currentBrightness <= 0 {
             setBrightness = 0
+        } else if currentBrightness <= 100 {
+            setBrightness = currentBrightness - 20
         } else {
             setBrightness = currentBrightness - 100
         }
