@@ -38,21 +38,25 @@ func setCurrentBacklightPercentage(backlightNumber string) int {
 }
 
 func help() {
-    fmt.Print("Please add one of those argument: current|+|-|XY%")
+    fmt.Print("Please add one of those argument: current|+|-|XY%\n--pretty: used with 'current' argument prints percentage and a lamp")
 }
 
 func main() {
     var currentBrightness, setBrightness int
     brightnessPath := "/sys/class/backlight/intel_backlight/brightness"
 
-    if len(os.Args) != 2 {
+    if len(os.Args) < 2 {
         help()
         os.Exit(1)
     }
 
     currentBrightness, _ = strconv.Atoi(getCurrentBacklight(brightnessPath))
     if os.Args[1] == "current" {
-        fmt.Println(getCurrentBacklightPercentage(currentBrightness))
+        toPrint := getCurrentBacklightPercentage(currentBrightness)
+        if len(os.Args) == 3 && os.Args[2] == "--pretty" {
+            toPrint = "\uF0EB " + toPrint + "%"
+        }
+        fmt.Println(toPrint)
         os.Exit(0)
     } else if os.Args[1] == "+" {
         if currentBrightness >= 2000 {
