@@ -55,6 +55,8 @@ func main() {
         toPrint := getCurrentBacklightPercentage(currentBrightness)
         if len(os.Args) == 3 && os.Args[2] == "--pretty" {
             toPrint = "\uF0EB " + toPrint + "%"
+        } else if len(os.Args) == 3 && os.Args[2] == "--pretty2" {
+            toPrint = "\uF822 " + toPrint + "%"
         }
         fmt.Println(toPrint)
         os.Exit(0)
