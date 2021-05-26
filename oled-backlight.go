@@ -8,6 +8,9 @@ import (
     "strings"
 )
 
+const brightnessPath = "/sys/class/backlight/intel_backlight/brightness"
+const maxBrightnessPath = "/sys/class/backlight/intel_backlight/max_brightness"
+
 func getCurrentBacklight(brightnessPath string) string {
     data, err := ioutil.ReadFile(brightnessPath)
     if err != nil {
@@ -17,24 +20,49 @@ func getCurrentBacklight(brightnessPath string) string {
     return strings.TrimSuffix(string(data), "\n")
 }
 
-func getCurrentBacklightPercentage(backlightNumber int) string {
-    max := 2000.0
-    if backlightNumber == 0 {
-        return "0%"
+func getMaxBacklight() (float64, error) {
+    max_kernel_content, err := ioutil.ReadFile(maxBrightnessPath)
+    if err != nil {
+        return 0, fmt.Errorf("Can't read max brightness path %s", maxBrightnessPath)
     }
-    backlightNumberFloat := float64(backlightNumber)
-    percentage := int((backlightNumberFloat / max) * 100)
-    return strconv.Itoa(percentage)
+
+    max, err := strconv.ParseFloat(strings.TrimSuffix(string(max_kernel_content), "\n"), 64)
+    if err != nil {
+        return 0, fmt.Errorf("Can't read %s content: %s", maxBrightnessPath, err)
+    }
+
+    return max, nil
 }
 
-func setCurrentBacklightPercentage(backlightNumber string) int {
-    percentage, _ := strconv.Atoi(strings.Split(backlightNumber, "%")[0])
-    if percentage >= 100 {
-        percentage = 100
-    } else if percentage <= 0 {
-        percentage = 0
+func getCurrentBacklightPercentage(backlightNumber float64) (string, error) {
+    max, err := getMaxBacklight()
+    if err != nil {
+        return "", err
     }
-    return percentage * 20
+
+    if backlightNumber == 0 {
+        return "0%", nil
+    }
+
+    backlightNumberFloat := backlightNumber
+    percentage := int((backlightNumberFloat / max) * 100)
+
+    return strconv.Itoa(percentage), nil
+}
+
+func setCurrentBacklight(backlightNumber string, brightnessUnit float64, maxBrightness float64) float64 {
+    var calculated_brightness float64
+    percentage, _ := strconv.ParseFloat(strings.Split(backlightNumber, "%")[0], 64)
+
+    if percentage > 99 || percentage + brightnessUnit >= 100 {
+        calculated_brightness = maxBrightness
+    } else if percentage <= 0 || percentage < brightnessUnit {
+        calculated_brightness = 0
+    } else {
+        calculated_brightness = percentage * brightnessUnit
+    }
+
+    return calculated_brightness
 }
 
 func help() {
@@ -42,55 +70,74 @@ func help() {
 }
 
 func main() {
-    var currentBrightness, setBrightness int
-    brightnessPath := "/sys/class/backlight/intel_backlight/brightness"
+    var setBrightness float64
 
     if len(os.Args) < 2 {
         help()
         os.Exit(1)
     }
 
-    currentBrightness, _ = strconv.Atoi(getCurrentBacklight(brightnessPath))
+    currentBrightness, _ := strconv.ParseFloat(getCurrentBacklight(brightnessPath), 64)
+    maxBrightness64, err := getMaxBacklight()
+    if err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
+
+    brightnessUnit := maxBrightness64 / 100
+    currentBrightnessPercentageString, err := getCurrentBacklightPercentage(currentBrightness)
+    if err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
+    currentBrightnessPercentage, _ := strconv.Atoi(currentBrightnessPercentageString)
+
     if os.Args[1] == "current" {
-        toPrint := getCurrentBacklightPercentage(currentBrightness)
+        toPrint, err := getCurrentBacklightPercentage(currentBrightness)
+        if err != nil {
+            fmt.Println(err)
+            os.Exit(1)
+        }
+
         if len(os.Args) == 3 && os.Args[2] == "--pretty" {
             toPrint = "\uF0EB " + toPrint + "%"
         } else if len(os.Args) == 3 && os.Args[2] == "--pretty2" {
             toPrint = "\uF822 " + toPrint + "%"
         }
+
         fmt.Println(toPrint)
         os.Exit(0)
     } else if os.Args[1] == "+" {
-        if currentBrightness >= 2000 {
-            setBrightness = 2000
-        } else if currentBrightness < 100 {
-            setBrightness = currentBrightness + 20
+        if currentBrightness >= maxBrightness64 - brightnessUnit {
+            setBrightness = maxBrightness64
+        } else if currentBrightnessPercentage <= 5 {
+            setBrightness = currentBrightness + brightnessUnit
         } else {
-            setBrightness = currentBrightness + 100
+            setBrightness = currentBrightness + (brightnessUnit * 5)
         }
     } else if os.Args[1] == "-" {
-        if currentBrightness <= 0 {
+        if currentBrightnessPercentage < 1 {
             setBrightness = 0
-        } else if currentBrightness <= 100 {
-            setBrightness = currentBrightness - 20
+        } else if currentBrightnessPercentage <= 5 {
+            setBrightness = currentBrightness - brightnessUnit
         } else {
-            setBrightness = currentBrightness - 100
+            setBrightness = currentBrightness - + (brightnessUnit * 5)
         }
     } else if strings.Contains(os.Args[1], "%") {
-        setBrightness = setCurrentBacklightPercentage(os.Args[1])
+        setBrightness = setCurrentBacklight(os.Args[1], brightnessUnit, maxBrightness64)
     } else {
        help()
        os.Exit(1)
     }
 
-    fmt.Println(getCurrentBacklightPercentage(setBrightness))
     f, err := os.Create(brightnessPath)
     if err != nil {
         fmt.Println(err)
         return
     }
 
-    _, err = f.WriteString(strconv.Itoa(setBrightness))
+    setBrightnessString := fmt.Sprintf("%d", int(setBrightness))
+    _, err = f.WriteString(setBrightnessString)
     if err != nil {
         fmt.Println(err)
         f.Close()
@@ -101,4 +148,11 @@ func main() {
         fmt.Println(err)
         return
     }
+
+    current, err := getCurrentBacklightPercentage(setBrightness)
+    if err != nil {
+        fmt.Println(err)
+        os.Exit(1)
+    }
+    fmt.Println(current)
 }
