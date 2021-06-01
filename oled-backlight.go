@@ -94,13 +94,13 @@ func main() {
     }
 
     if os.Args[1] == "current" {
-        toPrint := ""
         percentageToPrint, err := calculatePercentage(currentBrightness)
         if err != nil {
             fmt.Println(err)
             os.Exit(1)
         }
 
+        toPrint := fmt.Sprintf("%d", percentageToPrint)
         if len(os.Args) == 3 && os.Args[2] == "--pretty" {
             toPrint = fmt.Sprintf("\uF0EB %d%%", percentageToPrint)
         } else if len(os.Args) == 3 && os.Args[2] == "--pretty2" {
@@ -166,5 +166,5 @@ func main() {
         fmt.Println(err)
         os.Exit(1)
     }
-    fmt.Printf("%d%", current)
+    fmt.Printf("%d", current)
 }
